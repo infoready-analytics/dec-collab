@@ -180,13 +180,6 @@ Resources:
       ApplicationName: !Join ['-', [!Ref AppName, CodeDeployApp]]
       ComputePlatform: Lambda
 
-  CodeDeployDeploymentGroup:
-    Type: AWS::CodeDeploy::DeploymentGroup
-    Properties:
-      DeploymentGroupName: !Join ['-', [!Ref AppName, CodeDeployGrp]]
-      ApplicationName: !Ref CodeDeployApplication
-      ServiceRoleArn: !GetAtt CodePipelineService.Arn
-
   ArtifactStoreS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -227,18 +220,18 @@ Resources:
               OutputArtifacts:
                 - Name: DeployTemplate
               RunOrder: 1
-        - Name: Deploy
-          Actions:
-            - Name: DeployAction
-              InputArtifacts:
-                - Name: DeployTemplate
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Version: 1
-                Provider: CloudFormation
-              Configuration:
-              RunOrder: 1
+        # - Name: Deploy
+        #   Actions:
+        #     - Name: DeployAction
+        #       InputArtifacts:
+        #         - Name: DeployTemplate
+        #       ActionTypeId:
+        #         Category: Deploy
+        #         Owner: AWS
+        #         Version: 1
+        #         Provider: CloudFormation
+        #       Configuration:
+        #       RunOrder: 1
       ArtifactStore:
         Type: S3
         Location: !Ref ArtifactStoreS3Bucket
