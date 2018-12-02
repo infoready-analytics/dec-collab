@@ -1,0 +1,22 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo Nothing to do in the install phase...
+  pre_build:
+    commands:
+      - echo Nothing to do in the pre_build phase...
+  build:
+    commands:
+      - echo $S3_BUCKET
+      - echo Nothing to do in the build phase...
+      # - aws cloudformation package --template cloudformation/application.yml --s3-bucket $S3_BUCKET --output-template stack.yml
+  post_build:
+    commands:
+      - echo Build completed on `date`
+
+# artifacts:
+#   type: zip
+#   files:
+#     - stack.yml

@@ -1,0 +1,249 @@
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Set up configuration management
+
+Parameters:
+  AppName:
+    Default: vanilla-app
+    Description: Name of the application
+    Type: String
+
+Resources:
+
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', CodeBuildService]]
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action: ['sts:AssumeRole']
+            Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+                - codedeploy.amazonaws.com
+      Path: /
+      Policies:
+        - PolicyName: CodeBuildAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                - 'logs:*'
+                - 'ec2:CreateNetworkInterface'
+                - 'ec2:DescribeNetworkInterfaces'
+                - 'ec2:DeleteNetworkInterface'
+                - 'ec2:DescribeSubnets'
+                - 'ec2:DescribeSecurityGroups'
+                - 'ec2:DescribeDhcpOptions'
+                - 'ec2:DescribeVpcs'
+                - 'ec2:CreateNetworkInterfacePermission'
+                - 'codecommit:GitPull'
+                Effect: Allow
+                Resource: '*'
+              - Action:
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:GetBucketVersioning'
+                Effect: Allow
+                Resource: 'arn:aws:s3:::codepipeline*'
+              - Action:
+                  - 's3:PutObject'
+                Resource:
+                  - 'arn:aws:s3:::codepipeline*'
+                Effect: Allow
+
+  CodePipelineService:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', CodePipelineService]]
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: [codepipeline.amazonaws.com]
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: CodePipelineAccess
+          PolicyDocument:
+            Statement:
+              - Action:
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:GetBucketVersioning'
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - 's3:PutObject'
+                Resource:
+                  - 'arn:aws:s3:::codepipeline*'
+                  - 'arn:aws:s3:::elasticbeanstalk*'
+                Effect: Allow
+              - Action:
+                  - 'codedeploy:CreateDeployment'
+                  - 'codedeploy:GetApplicationRevision'
+                  - 'codedeploy:GetDeployment'
+                  - 'codedeploy:GetDeploymentConfig'
+                  - 'codedeploy:RegisterApplicationRevision'
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - 'elasticbeanstalk:CreateApplicationVersion'
+                  - 'elasticbeanstalk:DescribeApplicationVersions'
+                  - 'elasticbeanstalk:DescribeEnvironments'
+                  - 'elasticbeanstalk:DescribeEvents'
+                  - 'elasticbeanstalk:UpdateEnvironment'
+                  - 'autoscaling:DescribeAutoScalingGroups'
+                  - 'autoscaling:DescribeLaunchConfigurations'
+                  - 'autoscaling:DescribeScalingActivities'
+                  - 'autoscaling:ResumeProcesses'
+                  - 'autoscaling:SuspendProcesses'
+                  - 'cloudformation:GetTemplate'
+                  - 'cloudformation:DescribeStackResource'
+                  - 'cloudformation:DescribeStackResources'
+                  - 'cloudformation:DescribeStackEvents'
+                  - 'cloudformation:DescribeStacks'
+                  - 'cloudformation:UpdateStack'
+                  - 'ec2:DescribeInstances'
+                  - 'ec2:DescribeImages'
+                  - 'ec2:DescribeAddresses'
+                  - 'ec2:DescribeSubnets'
+                  - 'ec2:DescribeVpcs'
+                  - 'ec2:DescribeSecurityGroups'
+                  - 'ec2:DescribeKeyPairs'
+                  - 'elasticloadbalancing:DescribeLoadBalancers'
+                  - 'rds:DescribeDBInstances'
+                  - 'rds:DescribeOrderableDBInstanceOptions'
+                  - 'sns:ListSubscriptionsByTopic'
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - 'lambda:invokefunction'
+                  - 'lambda:listfunctions'
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - 's3:ListBucket'
+                  - 's3:GetBucketPolicy'
+                  - 's3:GetObjectAcl'
+                  - 's3:PutObjectAcl'
+                  - 's3:DeleteObject'
+                Resource: 'arn:aws:s3:::elasticbeanstalk*'
+                Effect: Allow
+              - Action:
+                  - 'codecommit:GetBranch'
+                  - 'codecommit:GetCommit'
+                  - 'codecommit:UploadArchive'
+                  - 'codecommit:GetUploadArchiveStatus'
+                  - 'codecommit:CancelUploadArchive'
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - 'codebuild:BatchGetBuilds'
+                  - 'codebuild:StartBuild'
+                Resource: '*'
+                Effect: Allow
+            Version: 2012-10-17
+
+  Repo:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Ref AppName
+      RepositoryDescription: Repository for application
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Join ["-", [!Ref AppName, Build]]
+      Source:
+        Type: CODEPIPELINE
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/python:3.6.5
+        EnvironmentVariables:
+          - Name: S3_BUCKET
+            Type: PLAINTEXT
+            Value: !Ref ArtifactStoreS3Bucket
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      TimeoutInMinutes: 5
+
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: !Join ['-', [!Ref AppName, CodeDeployApp]]
+      ComputePlatform: Lambda
+
+  ArtifactStoreS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join ["-", [codepipeline, !Ref AppName]]
+
+  CodePipeLine:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Join ["-", [!Ref AppName, Pipeline]]
+      RoleArn: !GetAtt CodePipelineService.Arn
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              OutputArtifacts:
+                - Name: SourceOutput
+              Configuration:
+                RepositoryName: !GetAtt Repo.Name
+                BranchName: master
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: BuildAction
+              InputArtifacts:
+                - Name: SourceOutput
+              ActionTypeId:
+                Category: Test
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              OutputArtifacts:
+                - Name: DeployTemplate
+              RunOrder: 1
+        # - Name: Deploy
+        #   Actions:
+        #     - Name: DeployAction
+        #       InputArtifacts:
+        #         - Name: DeployTemplate
+        #       ActionTypeId:
+        #         Category: Deploy
+        #         Owner: AWS
+        #         Version: 1
+        #         Provider: CloudFormation
+        #       Configuration:
+        #       RunOrder: 1
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactStoreS3Bucket
+
+Outputs:
+  RepoRemote:
+    Description: The https url for the CodeCommit remote
+    Value: !GetAtt Repo.CloneUrlHttp
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", CloneUrl ] ]
+  ArtifactStoreS3BucketName:
+    Description: The name of the S3 bucket used for CodePipeline artefacts
+    Value: !Join [ "", [ "s3://" , !Ref ArtifactStoreS3Bucket ] ]
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", ArtifactStoreS3BucketName ] ]
