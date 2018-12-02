@@ -242,3 +242,8 @@ Outputs:
     Value: !GetAtt Repo.CloneUrlHttp
     Export:
       Name: !Join [ ":", [ !Ref "AWS::StackName", CloneUrl ] ]
+  ArtifactStoreS3BucketName:
+    Description: The name of the S3 bucket used for CodePipeline artefacts
+    Value: !Join [ "", [ "s3://" , !Ref ArtifactStoreS3Bucket ] ]
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", ArtifactStoreS3BucketName ] ]

@@ -14,10 +14,14 @@ DEVSTACK=$(APPNAME)-DEV
 
 validate:
 	aws cloudformation validate-template --template-body file://cloudformation/configuration.yml
+	aws cloudformation list-exports
 
 init: validate init-create init-push
 
 un-init:
+	echo `aws cloudformation list-exports | jq -r '.Exports | map(select(.Name == "$(CONFSTACK):ArtifactStoreS3BucketName")) | .[0].Value'`
+	aws s3 rm --recursive \
+		`aws cloudformation list-exports | jq -r '.Exports | map(select(.Name == "$(CONFSTACK):ArtifactStoreS3BucketName")) | .[0].Value'`
 	aws cloudformation delete-stack --stack-name $(CONFSTACK)
 	time aws cloudformation wait stack-delete-complete --stack-name $(CONFSTACK)
 	git remote remove aws
@@ -35,4 +39,4 @@ init-push:
 	echo `aws cloudformation list-exports | jq -r '.Exports | map(select(.Name == "$(CONFSTACK):CloneUrl")) | .[0].Value'`
 	git remote add aws \
 	  `aws cloudformation list-exports | jq -r '.Exports | map(select(.Name == "$(CONFSTACK):CloneUrl")) | .[0].Value'`
-	git push aws HEAD:master
+	git push --set-upstream aws HEAD:master
