@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Deploy application
+
+Transform:
+- AWS::Serverless-2016-10-31
+
+Parameters:
+  AppName:
+    Default: vanilla-app
+    Description: Name of the application
+    Type: String
+
+Resources:
+
+  HelloWorld:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      Runtime: python3.6
+      CodeUri: index.py
+      Events:
+        GetEvent:
+          Type: Api
+          Properties:
+            Path: /
+            Method: get

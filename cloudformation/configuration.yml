@@ -149,6 +149,77 @@ Resources:
                 Effect: Allow
             Version: 2012-10-17
 
+  CloudFormationTrustRole:
+    Type: AWS::IAM::Role
+    Description: Creating service role in IAM for AWS CloudFormation
+    Properties:
+      RoleName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', CloudFormationService]]
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - cloudformation.amazonaws.com
+      Path: /
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:GetObjectVersion
+            Effect: Allow
+            Resource:
+            - !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref 'S3Bucket'
+            - !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref 'S3Bucket'
+                - /*
+          - Action:
+            - lambda:CreateFunction
+            - lambda:DeleteFunction
+            - lambda:AddPermission
+            - lambda:UpdateFunction
+            - lambda:UpdateFunctionCode
+            - lambda:GetFunction
+            - lambda:GetFunctionConfiguration
+            - lambda:UpdateFunctionConfiguration
+            - lambda:RemovePermission
+            - lambda:listTags
+            - lambda:TagResource
+            - lambda:UntagResource
+            - apigateway:*
+            - sns:CreateTopic
+            - sns:DeleteTopic
+            - sns:ListTopics
+            - sns:GetTopicAttributes
+            - sns:SetTopicAttributes
+            - s3:CreateBucket
+            - s3:DeleteBucket
+            - config:DescribeConfigRules
+            - config:PutConfigRule
+            - config:DeleteConfigRule
+            Effect: Allow
+            Resource: '*'
+          - Action:
+            - iam:PassRole
+            Effect: Allow
+            Resource:
+            - !GetAtt
+              - LambdaTrustRole
+              - Arn
+          - Action:
+            - cloudformation:CreateChangeSet
+            Effect: Allow
+            Resource:
+            - arn:aws:cloudformation:ap-southeast-2:aws:transform/Serverless-2016-10-31
+        PolicyName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', CloudFormationRolePolicy]]
+
   Repo:
     Type: AWS::CodeCommit::Repository
     Properties:
@@ -173,12 +244,6 @@ Resources:
             Value: !Ref ArtifactStoreS3Bucket
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
       TimeoutInMinutes: 5
-
-  CodeDeployApplication:
-    Type: AWS::CodeDeploy::Application
-    Properties:
-      ApplicationName: !Join ['-', [!Ref AppName, CodeDeployApp]]
-      ComputePlatform: Lambda
 
   ArtifactStoreS3Bucket:
     Type: AWS::S3::Bucket
@@ -220,18 +285,22 @@ Resources:
               OutputArtifacts:
                 - Name: DeployTemplate
               RunOrder: 1
-        # - Name: Deploy
-        #   Actions:
-        #     - Name: DeployAction
-        #       InputArtifacts:
-        #         - Name: DeployTemplate
-        #       ActionTypeId:
-        #         Category: Deploy
-        #         Owner: AWS
-        #         Version: 1
-        #         Provider: CloudFormation
-        #       Configuration:
-        #       RunOrder: 1
+        - Name: Deploy
+          Actions:
+            - Name: DeployAction
+              InputArtifacts:
+                - Name: DeployTemplate
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                StackName: !Join ["-", [!Ref AppName, Stack]]
+                RoleArn: !GetAtt CloudFormationService.Arn
+                TemplatePath: DeployTemplate::application-out.yml
+              RunOrder: 1
       ArtifactStore:
         Type: S3
         Location: !Ref ArtifactStoreS3Bucket
