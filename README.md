@@ -19,3 +19,7 @@ origin/feature/x - feature "x" branch mergeable to master.
 
 origin/alilee - personal branch for experimentation. Merge to a feature branch
 before merging to master.
+
+## Setup
+
+Check the docs in doc/setup.md
