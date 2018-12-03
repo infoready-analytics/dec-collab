@@ -220,6 +220,34 @@ Resources:
             - arn:aws:cloudformation:ap-southeast-2:aws:transform/Serverless-2016-10-31
         PolicyName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', CloudFormationRolePolicy]]
 
+  LambdaTrustRole:
+    Type: AWS::IAM::Role
+    Description: Creating service role in IAM for AWS Lambda
+    Properties:
+      RoleName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', Lambda]]
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/service-role/AWSConfigRulesExecutionRole
+      Path: /
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Effect: Allow
+            Resource: '*'
+          Version: 2012-10-17
+        PolicyName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', LambdaWorkerPolicy]]
+
   Repo:
     Type: AWS::CodeCommit::Repository
     Properties:
