@@ -56,7 +56,7 @@ environment in each shell session you will be calling the aws cli from
 (including from make).
 ```aidl
 export AWS_PROFILE=da-dec-collab
-# then you can supply your make commands.  
+# then
 # Note: the APP_PREFIX must be lowercase and uniquely idenify your stack
 make init APP_PREFIX=myprefix
 ```
