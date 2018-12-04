@@ -11,7 +11,7 @@ Parameters:
 
 Resources:
 
-  CodeBuildServiceRole:
+  CodeBuildService:
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', CodeBuildService]]
@@ -72,6 +72,10 @@ Resources:
           PolicyDocument:
             Statement:
               - Action:
+                  - 'iam:PassRole'
+                Resource: '*'
+                Effect: Allow
+              - Action:
                   - 's3:GetObject'
                   - 's3:GetObjectVersion'
                   - 's3:GetBucketVersioning'
@@ -108,6 +112,7 @@ Resources:
                   - 'cloudformation:DescribeStackEvents'
                   - 'cloudformation:DescribeStacks'
                   - 'cloudformation:UpdateStack'
+                  - 'cloudformation:CreateStack'
                   - 'ec2:DescribeInstances'
                   - 'ec2:DescribeImages'
                   - 'ec2:DescribeAddresses'
@@ -149,7 +154,7 @@ Resources:
                 Effect: Allow
             Version: 2012-10-17
 
-  CloudFormationTrustRole:
+  CloudFormationService:
     Type: AWS::IAM::Role
     Description: Creating service role in IAM for AWS CloudFormation
     Properties:
@@ -174,11 +179,11 @@ Resources:
             - !Join
               - ''
               - - 'arn:aws:s3:::'
-                - !Ref 'S3Bucket'
+                - !Ref ArtifactStoreS3Bucket
             - !Join
               - ''
               - - 'arn:aws:s3:::'
-                - !Ref 'S3Bucket'
+                - !Ref ArtifactStoreS3Bucket
                 - /*
           - Action:
             - lambda:CreateFunction
@@ -211,7 +216,7 @@ Resources:
             Effect: Allow
             Resource:
             - !GetAtt
-              - LambdaTrustRole
+              - LambdaService
               - Arn
           - Action:
             - cloudformation:CreateChangeSet
@@ -220,9 +225,9 @@ Resources:
             - arn:aws:cloudformation:ap-southeast-2:aws:transform/Serverless-2016-10-31
         PolicyName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', CloudFormationRolePolicy]]
 
-  LambdaTrustRole:
+  LambdaService:
     Type: AWS::IAM::Role
-    Description: Creating service role in IAM for AWS Lambda
+    Description: Service role for AWS Lambda
     Properties:
       RoleName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', Lambda]]
       AssumeRolePolicyDocument:
@@ -270,7 +275,7 @@ Resources:
           - Name: S3_BUCKET
             Type: PLAINTEXT
             Value: !Ref ArtifactStoreS3Bucket
-      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      ServiceRole: !GetAtt CodeBuildService.Arn
       TimeoutInMinutes: 5
 
   ArtifactStoreS3Bucket:
@@ -328,6 +333,7 @@ Resources:
                 StackName: !Join ["-", [!Ref AppName, Stack]]
                 RoleArn: !GetAtt CloudFormationService.Arn
                 TemplatePath: DeployTemplate::application-out.yml
+                Capabilities: "CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND"
               RunOrder: 1
       ArtifactStore:
         Type: S3
