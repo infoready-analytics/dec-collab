@@ -73,6 +73,7 @@ Resources:
             Statement:
               - Action:
                   - 'iam:PassRole'
+                  - 'iam:CreateRole'
                 Resource: '*'
                 Effect: Allow
               - Action:
@@ -113,6 +114,9 @@ Resources:
                   - 'cloudformation:DescribeStacks'
                   - 'cloudformation:UpdateStack'
                   - 'cloudformation:CreateStack'
+                  - 'cloudformation:DescribeChangeSet'
+                  - 'cloudformation:CreateChangeSet'
+                  - 'cloudformation:ExecuteChangeSet'
                   - 'ec2:DescribeInstances'
                   - 'ec2:DescribeImages'
                   - 'ec2:DescribeAddresses'
@@ -319,22 +323,52 @@ Resources:
                 - Name: DeployTemplate
               RunOrder: 1
         - Name: Deploy
+          # Actions:
+          #   - Name: DeployAction
+          #     InputArtifacts:
+          #       - Name: DeployTemplate
+          #     ActionTypeId:
+          #       Category: Deploy
+          #       Owner: AWS
+          #       Version: 1
+          #       Provider: CloudFormation
+          #     Configuration:
+          #       ActionMode: CREATE_UPDATE
+          #       StackName: !Join ["-", [!Ref AppName, Stack]]
+          #       RoleArn: !GetAtt CloudFormationService.Arn
+          #       TemplatePath: DeployTemplate::application-out.yml
+          #       Capabilities: CAPABILITY_AUTO_EXPAND
+          #       ParameterOverrides: !Join [ "", [ '{"AppName":"', !Ref AppName, '"}' ]]
+          #     RunOrder: 1
           Actions:
-            - Name: DeployAction
-              InputArtifacts:
-                - Name: DeployTemplate
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Version: 1
-                Provider: CloudFormation
-              Configuration:
-                ActionMode: CREATE_UPDATE
-                StackName: !Join ["-", [!Ref AppName, Stack]]
-                RoleArn: !GetAtt CloudFormationService.Arn
-                TemplatePath: DeployTemplate::application-out.yml
-                Capabilities: "CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND"
-              RunOrder: 1
+          - Name: GenerateChangeSet
+            RunOrder: 1
+            ActionTypeId:
+              Category: Deploy
+              Owner: AWS
+              Provider: CloudFormation
+              Version: 1
+            InputArtifacts:
+              - Name: DeployTemplate
+            Configuration:
+              ActionMode: CHANGE_SET_REPLACE
+              Capabilities: CAPABILITY_IAM
+              ChangeSetName: pipeline-changeset
+              ParameterOverrides: !Join [ "", [ '{"AppName":"', !Ref AppName, '"}' ]]
+              RoleArn: !GetAtt CloudFormationService.Arn
+              StackName: !Join ["-", [!Ref AppName, Stack]]
+              TemplatePath: DeployTemplate::application-out.yml
+          - Name: ExecuteChangeSet
+            RunOrder: 2
+            ActionTypeId:
+              Category: Deploy
+              Owner: AWS
+              Provider: CloudFormation
+              Version: 1
+            Configuration:
+              ActionMode: CHANGE_SET_EXECUTE
+              ChangeSetName: pipeline-changeset
+              StackName: !Join ["-", [!Ref AppName, Stack]]
       ArtifactStore:
         Type: S3
         Location: !Ref ArtifactStoreS3Bucket
@@ -350,3 +384,8 @@ Outputs:
     Value: !Join [ "", [ "s3://" , !Ref ArtifactStoreS3Bucket ] ]
     Export:
       Name: !Join [ ":", [ !Ref "AWS::StackName", ArtifactStoreS3BucketName ] ]
+  LambdaServiceRole:
+    Description: Role for running lambda
+    Value: !GetAtt LambdaService.Arn
+    Export:
+      Name: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', LambdaService]]

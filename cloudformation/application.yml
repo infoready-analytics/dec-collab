@@ -16,6 +16,7 @@ Resources:
   HelloWorld:
     Type: AWS::Serverless::Function
     Properties:
+      Role: !ImportValue [ !Join ['-', [!Ref AppName, !Ref 'AWS::Region', LambdaService]]]
       Handler: index.handler
       Runtime: python3.6
       CodeUri: index.py
