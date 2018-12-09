@@ -10,13 +10,16 @@ Parameters:
     Default: vanilla-app
     Description: Name of the application
     Type: String
+  LamdaServiceArn:
+    Description: Arn of Role to run Lambda as
+    Type: String
 
 Resources:
 
   HelloWorld:
     Type: AWS::Serverless::Function
     Properties:
-      Role: !ImportValue [!Join ['-', [!Ref AppName, !Ref 'AWS::Region', LambdaService]]]
+      Role: !Ref LambdaServiceArn
       Handler: index.handler
       Runtime: python3.6
       CodeUri: index.py
