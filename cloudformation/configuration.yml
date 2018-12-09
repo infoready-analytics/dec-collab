@@ -355,15 +355,7 @@ Resources:
               ActionMode: CHANGE_SET_REPLACE
               Capabilities: CAPABILITY_IAM
               ChangeSetName: pipeline-changeset
-              ParameterOverrides:
-                - !Join
-                  - ""
-                  - - '{'
-                    - '"AppName":"'
-                    - !Ref AppName
-                    - '", "LambdaServiceArn":"'
-                    - !GetAtt LambdaService.Arn
-                    - '"}'
+              ParameterOverrides: !Join ["", ['{', '"AppName":"', !Ref AppName, '", "LambdaServiceArn":"', !GetAtt LambdaService.Arn, '"}' ]]
               RoleArn: !GetAtt CloudFormationService.Arn
               StackName: !Join ["-", [!Ref AppName, Stack]]
               TemplatePath: DeployTemplate::application-out.yml
