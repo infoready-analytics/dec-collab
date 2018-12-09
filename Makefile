@@ -14,6 +14,7 @@ DEVSTACK=$(APPNAME)-DEV
 
 validate:
 	aws cloudformation validate-template --template-body file://cloudformation/configuration.yml
+	aws cloudformation validate-template --template-body file://cloudformation/application.yml
 	aws cloudformation list-exports
 
 init: validate init-create init-push
