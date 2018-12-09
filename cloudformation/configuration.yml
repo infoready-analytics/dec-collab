@@ -117,6 +117,7 @@ Resources:
                   - 'cloudformation:DescribeChangeSet'
                   - 'cloudformation:CreateChangeSet'
                   - 'cloudformation:ExecuteChangeSet'
+                  - 'cloudformation:DeleteChangeSet'
                   - 'ec2:DescribeInstances'
                   - 'ec2:DescribeImages'
                   - 'ec2:DescribeAddresses'
