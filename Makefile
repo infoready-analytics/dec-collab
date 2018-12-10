@@ -12,7 +12,13 @@ APPNAME=$(DOMAIN_PREFIX)$(APP_PREFIX)app
 CONFSTACK=$(APPNAME)-CONF
 DEVSTACK=$(APPNAME)-DEV
 
-validate:
+# Validate required input parameters are set or supplied to the make file
+check-param:
+ifeq (${APP_PREFIX}, )
+$(error APP_PREFIX is not set. It is set to: ${APP_PREFIX}.  Please supply as part of your Makefile command or set it as an environment variable)
+endif
+
+validate: check-param
 	aws cloudformation validate-template --template-body file://cloudformation/configuration.yml
 	aws cloudformation list-exports
 
