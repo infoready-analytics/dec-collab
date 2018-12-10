@@ -6,15 +6,21 @@
 # The minimum command is, which you can try:
 # $ make -n
 #
-# However in the context of our setup we should have an APP_PREFIX (all lowercase) supplied to provide a unique variation of the stack as per below:
+
+# Isolates the application from others with the same name
+DOMAIN_PREFIX=au-com-infoready-
+# Fully qualified app name (used for stacks)
+# APP_PREFIX prevents CONF resources named in global namespaces (ie. S3
+# buckets) from colliding even if for same domain and app. Required when you
+# don't want to share between developers.
 # $ make -n APP_PREFIX=myprefix
 # or for a specific make:
 # $ make -n init APP_PREFIX=myprefix
-#
-
-DOMAIN_PREFIX=au-com-infoready-
 APPNAME=$(DOMAIN_PREFIX)$(APP_PREFIX)app
+
+# Configuration stack (repo and build pipeline)
 CONFSTACK=$(APPNAME)-CONF
+# Shared application environment
 DEVSTACK=$(APPNAME)-DEV
 
 validate:
