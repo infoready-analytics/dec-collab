@@ -6,11 +6,6 @@
 # The minimum command is, which you can try:
 # $ make -n
 #
-# However in the context of our setup we should have an APP_PREFIX (all lowercase) supplied to provide a unique variation of the stack as per below:
-# $ make -n APP_PREFIX=myprefix
-# or for a specific make:
-# $ make -n init APP_PREFIX=myprefix
-#
 
 # Isolates the application from others with the same name
 DOMAIN_PREFIX=au-com-infoready-
