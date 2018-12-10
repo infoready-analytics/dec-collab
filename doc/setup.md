@@ -56,6 +56,9 @@ environment in each shell session you will be calling the aws cli from
 (including from make).
 ```aidl
 export AWS_PROFILE=da-dec-collab
-# then
+
+# Note: APP_PREFIX prevents collision with buckets created in other accounts for
+# this app by other developers.
+export APP_PREFIX=alilee-
 make init
 ```
