@@ -10,7 +10,7 @@ Parameters:
     Default: vanilla-app
     Description: Name of the application
     Type: String
-  LamdaServiceArn:
+  LambdaServiceArn:
     Description: Arn of Role to run Lambda as
     Type: String
 
