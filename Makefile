@@ -14,6 +14,7 @@ DEVSTACK=$(APPNAME)-DEV
 
 validate:
 	aws cloudformation validate-template --template-body file://cloudformation/configuration.yml
+	aws cloudformation validate-template --template-body file://cloudformation/application.yml
 	aws cloudformation list-exports
 
 init: validate init-create init-push
@@ -40,3 +41,10 @@ init-push:
 	git remote add aws \
 		`aws cloudformation list-exports | jq -r '.Exports | map(select(.Name == "$(CONFSTACK):CloneUrl")) | .[0].Value'`
 	git push --set-upstream aws HEAD:master
+
+init-up:
+	aws cloudformation update-stack --stack-name $(CONFSTACK) \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--template-body file://cloudformation/configuration.yml \
+		--parameters ParameterKey=AppName,ParameterValue=$(APPNAME)
+	time aws cloudformation wait stack-update-complete --stack-name $(CONFSTACK)

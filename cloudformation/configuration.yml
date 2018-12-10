@@ -10,7 +10,7 @@ Parameters:
 
 Resources:
 
-  CodeBuildServiceRole:
+  CodeBuildService:
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', CodeBuildService]]
@@ -71,6 +71,11 @@ Resources:
           PolicyDocument:
             Statement:
               - Action:
+                  - 'iam:PassRole'
+                  - 'iam:CreateRole'
+                Resource: '*'
+                Effect: Allow
+              - Action:
                   - 's3:GetObject'
                   - 's3:GetObjectVersion'
                   - 's3:GetBucketVersioning'
@@ -107,6 +112,11 @@ Resources:
                   - 'cloudformation:DescribeStackEvents'
                   - 'cloudformation:DescribeStacks'
                   - 'cloudformation:UpdateStack'
+                  - 'cloudformation:CreateStack'
+                  - 'cloudformation:DescribeChangeSet'
+                  - 'cloudformation:CreateChangeSet'
+                  - 'cloudformation:ExecuteChangeSet'
+                  - 'cloudformation:DeleteChangeSet'
                   - 'ec2:DescribeInstances'
                   - 'ec2:DescribeImages'
                   - 'ec2:DescribeAddresses'
@@ -148,6 +158,105 @@ Resources:
                 Effect: Allow
             Version: 2012-10-17
 
+  CloudFormationService:
+    Type: AWS::IAM::Role
+    Description: Creating service role in IAM for AWS CloudFormation
+    Properties:
+      RoleName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', CloudFormationService]]
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - cloudformation.amazonaws.com
+      Path: /
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:GetObjectVersion
+            Effect: Allow
+            Resource:
+            - !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref ArtifactStoreS3Bucket
+            - !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref ArtifactStoreS3Bucket
+                - /*
+          - Action:
+            - lambda:CreateFunction
+            - lambda:DeleteFunction
+            - lambda:AddPermission
+            - lambda:UpdateFunction
+            - lambda:UpdateFunctionCode
+            - lambda:GetFunction
+            - lambda:GetFunctionConfiguration
+            - lambda:UpdateFunctionConfiguration
+            - lambda:RemovePermission
+            - lambda:listTags
+            - lambda:TagResource
+            - lambda:UntagResource
+            - apigateway:*
+            - sns:CreateTopic
+            - sns:DeleteTopic
+            - sns:ListTopics
+            - sns:GetTopicAttributes
+            - sns:SetTopicAttributes
+            - s3:CreateBucket
+            - s3:DeleteBucket
+            - config:DescribeConfigRules
+            - config:PutConfigRule
+            - config:DeleteConfigRule
+            Effect: Allow
+            Resource: '*'
+          - Action:
+            - iam:PassRole
+            Effect: Allow
+            Resource:
+            - !GetAtt
+              - LambdaService
+              - Arn
+          - Action:
+            - cloudformation:CreateChangeSet
+            Effect: Allow
+            Resource:
+            - arn:aws:cloudformation:ap-southeast-2:aws:transform/Serverless-2016-10-31
+        PolicyName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', CloudFormationRolePolicy]]
+
+  LambdaService:
+    Type: AWS::IAM::Role
+    Description: Service role for AWS Lambda
+    Properties:
+      RoleName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', Lambda]]
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/service-role/AWSConfigRulesExecutionRole
+      Path: /
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Effect: Allow
+            Resource: '*'
+          Version: 2012-10-17
+        PolicyName: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', LambdaWorkerPolicy]]
+
   Repo:
     Type: AWS::CodeCommit::Repository
     Properties:
@@ -170,14 +279,8 @@ Resources:
           - Name: S3_BUCKET
             Type: PLAINTEXT
             Value: !Ref ArtifactStoreS3Bucket
-      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      ServiceRole: !GetAtt CodeBuildService.Arn
       TimeoutInMinutes: 5
-
-  CodeDeployApplication:
-    Type: AWS::CodeDeploy::Application
-    Properties:
-      ApplicationName: !Join ['-', [!Ref AppName, CodeDeployApp]]
-      ComputePlatform: Lambda
 
   ArtifactStoreS3Bucket:
     Type: AWS::S3::Bucket
@@ -219,18 +322,36 @@ Resources:
               OutputArtifacts:
                 - Name: DeployTemplate
               RunOrder: 1
-        # - Name: Deploy
-        #   Actions:
-        #     - Name: DeployAction
-        #       InputArtifacts:
-        #         - Name: DeployTemplate
-        #       ActionTypeId:
-        #         Category: Deploy
-        #         Owner: AWS
-        #         Version: 1
-        #         Provider: CloudFormation
-        #       Configuration:
-        #       RunOrder: 1
+        - Name: Deploy
+          Actions:
+          - Name: GenerateChangeSet
+            RunOrder: 1
+            ActionTypeId:
+              Category: Deploy
+              Owner: AWS
+              Provider: CloudFormation
+              Version: 1
+            InputArtifacts:
+              - Name: DeployTemplate
+            Configuration:
+              ActionMode: CHANGE_SET_REPLACE
+              Capabilities: CAPABILITY_IAM
+              ChangeSetName: pipeline-changeset
+              ParameterOverrides: !Join ["", ['{', '"AppName":"', !Ref AppName, '", "LambdaServiceArn":"', !GetAtt LambdaService.Arn, '"}' ]]
+              RoleArn: !GetAtt CloudFormationService.Arn
+              StackName: !Join ["-", [!Ref AppName, Stack]]
+              TemplatePath: DeployTemplate::application-out.yml
+          - Name: ExecuteChangeSet
+            RunOrder: 2
+            ActionTypeId:
+              Category: Deploy
+              Owner: AWS
+              Provider: CloudFormation
+              Version: 1
+            Configuration:
+              ActionMode: CHANGE_SET_EXECUTE
+              ChangeSetName: pipeline-changeset
+              StackName: !Join ["-", [!Ref AppName, Stack]]
       ArtifactStore:
         Type: S3
         Location: !Ref ArtifactStoreS3Bucket
@@ -246,3 +367,8 @@ Outputs:
     Value: !Join [ "", [ "s3://" , !Ref ArtifactStoreS3Bucket ] ]
     Export:
       Name: !Join [ ":", [ !Ref "AWS::StackName", ArtifactStoreS3BucketName ] ]
+  LambdaServiceRole:
+    Description: Role for running lambda
+    Value: !GetAtt LambdaService.Arn
+    Export:
+      Name: !Join ['-', [!Ref AppName, !Ref 'AWS::Region', LambdaService]]
