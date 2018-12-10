@@ -324,23 +324,6 @@ Resources:
                 - Name: DeployTemplate
               RunOrder: 1
         - Name: Deploy
-          # Actions:
-          #   - Name: DeployAction
-          #     InputArtifacts:
-          #       - Name: DeployTemplate
-          #     ActionTypeId:
-          #       Category: Deploy
-          #       Owner: AWS
-          #       Version: 1
-          #       Provider: CloudFormation
-          #     Configuration:
-          #       ActionMode: CREATE_UPDATE
-          #       StackName: !Join ["-", [!Ref AppName, Stack]]
-          #       RoleArn: !GetAtt CloudFormationService.Arn
-          #       TemplatePath: DeployTemplate::application-out.yml
-          #       Capabilities: CAPABILITY_AUTO_EXPAND
-          #       ParameterOverrides: !Join [ "", [ '{"AppName":"', !Ref AppName, '"}' ]]
-          #     RunOrder: 1
           Actions:
           - Name: GenerateChangeSet
             RunOrder: 1
