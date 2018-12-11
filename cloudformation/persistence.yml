@@ -7,110 +7,37 @@ Parameters:
     Default: vanilla-app
     Description: Name of the application
     Type: String
-  ClusterId:
-    AllowedPattern: "[a-zA-Z0-9\\-]+[^\\-]"
-    ConstraintDescription:  1 to 60 alphanumeric characters or hyphens. First character must be a letter. Can't contain two consecutive hyphens. Can't end with a hyphen.
-    Description: The DB cluster identifier is a case-sensitive, but is stored as all lowercase(as in "mydbcluster").
-    MaxLength: '60'
-    MinLength: '1'
-    Type: String
-  DatabaseName:
-    AllowedPattern: "[a-zA-Z0-9]+"
-    ConstraintDescription: must be between 1 to 16 alphanumeric characters.
-    Description: The database name, between 1 to 16 alphanumeric characters.
-    MaxLength: '16'
-    MinLength: '1'
-    Type: String
-  DatabaseUsername:
-    AllowedPattern: "[a-zA-Z0-9]+"
-    ConstraintDescription: must be between 1 to 16 alphanumeric characters.
-    Description: The database admin account user name, between 1 to 16 alphanumeric characters.
-    MaxLength: '16'
-    MinLength: '1'
-    Type: String
-  DatabasePassword:
-    AllowedPattern: "[a-zA-Z0-9]+"
-    ConstraintDescription: must be between 8 to 41 alphanumeric characters.
-    Description: The database admin account password, between 8 to 41 alphanumeric characters.
-    MaxLength: '41'
-    MinLength: '8'
-    NoEcho: 'true'
-    Type: String
-  MinCapacityUnits:
-    AllowedValues:
-      - 2
-      - 4
-      - 8
-      - 16
-      - 32
-    ConstraintDescription: must be one of 2, 4, 8, 16 or 32.
-    Default: 2
-    Description: The minimum number of capcity units for scaling (2, 4, 8, 16 or 32).
-    Type: Number
-  MaxCapacityUnits:
-    AllowedValues:
-      - 2
-      - 4
-      - 8
-      - 16
-      - 32
-    ConstraintDescription: must be one of 2, 4, 8, 16 or 32.
-    Default: 2
-    Description: The maximum number of capcity units for scaling (2, 4, 8, 16 or 32).
-    Type: Number
-  SecondsUntilAutoPause:
-    Default: 300
-    ConstraintDescription: must be between 300 and 86400.
-    Description: The number of seconds of inactivity before the cluster is paused.
-    MinValue: 300
-    MaxValue: 84600
-    Type: Number
-
 
 Resources:
+  DBACredentials:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: 'DBA account credentials'
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "dba"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+
   DatabaseCluster:
     Type: "AWS::RDS::DBCluster"
     Properties:
-      # AvailabilityZones:
-        # - String
-      # BacktrackWindow: Integer
-      # BackupRetentionPeriod: Integer
-      DatabaseName: !Ref "DatabaseName"
-      DBClusterIdentifier: !Ref "ClusterId"
-      # DBClusterParameterGroupName: String
-      # DBSubnetGroupName: String
+      DatabaseName: !Ref AppName
+      DBClusterIdentifier: !Join ["-", [!Ref AppName, dbcluster ]]
       DeletionProtection: false
-      # EnableCloudwatchLogsExports:
-      #   - String
-      # EnableIAMDatabaseAuthentication: false
       Engine: "aurora"
       EngineMode: "serverless"
       EngineVersion: "5.6.10a"
-      # KmsKeyId: String
-      MasterUsername: !Ref "DatabaseUsername"
-      MasterUserPassword: !Ref "DatabasePassword"
-      Port: 3306
-      # PreferredBackupWindow: String
-      # PreferredMaintenanceWindow: String
-      # ReplicationSourceIdentifier: String
+      MasterUsername: !Join ['', ['{{resolve:secretsmanager:', !Ref DBACredentials, ':SecretString:username}}' ]]
+      MasterUserPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref DBACredentials, ':SecretString:password}}' ]]
       ScalingConfiguration:
         AutoPause: true
-        MaxCapacity: !Ref MaxCapacityUnits
-        MinCapacity: !Ref MinCapacityUnits
-        SecondsUntilAutoPause: !Ref SecondsUntilAutoPause
-      # SnapshotIdentifier: String
+        MaxCapacity: 2
+        MinCapacity: 2
+        SecondsUntilAutoPause: 300
       StorageEncrypted: true
-      Tags:
-        -
-          Key: "AppName"
-          Value: !Ref AppName
-      # VpcSecurityGroupIds:
-      #   - String
 
 Outputs:
-  InstanceId:
-    Description: The InstanceId of the created DB cluster.
-    Value: !Ref DatabaseCluster
   EndpointAddress:
     Description: The connection endpoint for the created DB cluster.
     Value: !GetAtt DatabaseCluster.Endpoint.Address

@@ -11,6 +11,7 @@ phases:
     commands:
       - echo $S3_BUCKET
       - aws cloudformation package --template cloudformation/application.yml --s3-bucket $S3_BUCKET --output-template application-out.yml
+      - aws cloudformation package --template cloudformation/persistence.yml --s3-bucket $S3_BUCKET --output-template persistence-out.yml
   post_build:
     commands:
       - echo Build completed on `date`
@@ -19,3 +20,4 @@ artifacts:
   type: zip
   files:
     - application-out.yml
+    - persistence-out.yml
