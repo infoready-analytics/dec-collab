@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Set up persistence layer
+
+Parameters:
+  AppName:
+    Default: vanilla-app
+    Description: Name of the application
+    Type: String
+
+Resources:
+  DBACredentials:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: 'DBA account credentials'
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "dba"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+
+  DatabaseCluster:
+    Type: "AWS::RDS::DBCluster"
+    Properties:
+      DatabaseName: !Ref AppName
+      DBClusterIdentifier: !Join ["-", [!Ref AppName, dbcluster ]]
+      DeletionProtection: false
+      Engine: "aurora"
+      EngineMode: "serverless"
+      EngineVersion: "5.6.10a"
+      MasterUsername: !Join ['', ['{{resolve:secretsmanager:', !Ref DBACredentials, ':SecretString:username}}' ]]
+      MasterUserPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref DBACredentials, ':SecretString:password}}' ]]
+      ScalingConfiguration:
+        AutoPause: true
+        MaxCapacity: 2
+        MinCapacity: 2
+        SecondsUntilAutoPause: 300
+      StorageEncrypted: true
+
+Outputs:
+  EndpointAddress:
+    Description: The connection endpoint for the created DB cluster.
+    Value: !GetAtt DatabaseCluster.Endpoint.Address
+  EndpointPort:
+    Description: The port number on which the database accepts connections.
+    Value: !GetAtt DatabaseCluster.Endpoint.Port

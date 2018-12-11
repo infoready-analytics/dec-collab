@@ -324,7 +324,7 @@ Resources:
               RunOrder: 1
         - Name: Deploy
           Actions:
-          - Name: GenerateChangeSet
+          - Name: GenerateAppChangeSet
             RunOrder: 1
             ActionTypeId:
               Category: Deploy
@@ -336,13 +336,29 @@ Resources:
             Configuration:
               ActionMode: CHANGE_SET_REPLACE
               Capabilities: CAPABILITY_IAM
-              ChangeSetName: pipeline-changeset
+              ChangeSetName: pipeline-app-changeset
               ParameterOverrides: !Join ["", ['{', '"AppName":"', !Ref AppName, '", "LambdaServiceArn":"', !GetAtt LambdaService.Arn, '"}' ]]
               RoleArn: !GetAtt CloudFormationService.Arn
-              StackName: !Join ["-", [!Ref AppName, Stack]]
+              StackName: !Join ["-", [!Ref AppName, AppStack]]
               TemplatePath: DeployTemplate::application-out.yml
-          - Name: ExecuteChangeSet
+          - Name: GeneratePerChangeSet
             RunOrder: 2
+            ActionTypeId:
+              Category: Deploy
+              Owner: AWS
+              Provider: CloudFormation
+              Version: 1
+            InputArtifacts:
+              - Name: DeployTemplate
+            Configuration:
+              ActionMode: CHANGE_SET_REPLACE
+              ChangeSetName: pipeline-per-changeset
+              ParameterOverrides: !Join ["", ['{', '"AppName":"', !Ref AppName, '"}' ]]
+              RoleArn: !GetAtt CloudFormationService.Arn
+              StackName: !Join ["-", [!Ref AppName, PersistenceStack]]
+              TemplatePath: DeployTemplate::persistence-out.yml
+          - Name: ExecuteAppChangeSet
+            RunOrder: 3
             ActionTypeId:
               Category: Deploy
               Owner: AWS
@@ -350,8 +366,19 @@ Resources:
               Version: 1
             Configuration:
               ActionMode: CHANGE_SET_EXECUTE
-              ChangeSetName: pipeline-changeset
-              StackName: !Join ["-", [!Ref AppName, Stack]]
+              ChangeSetName: pipeline-app-changeset
+              StackName: !Join ["-", [!Ref AppName, AppStack]]
+          - Name: ExecutePerChangeSet
+            RunOrder: 4
+            ActionTypeId:
+              Category: Deploy
+              Owner: AWS
+              Provider: CloudFormation
+              Version: 1
+            Configuration:
+              ActionMode: CHANGE_SET_EXECUTE
+              ChangeSetName: pipeline-per-changeset
+              StackName: !Join ["-", [!Ref AppName, PersistenceStack]]
       ArtifactStore:
         Type: S3
         Location: !Ref ArtifactStoreS3Bucket

@@ -24,8 +24,11 @@ CONFSTACK=$(APPNAME)-CONF
 DEVSTACK=$(APPNAME)-DEV
 
 validate:
+	echo $(CONFSTACK)
+	echo $(DEVSTACK)
 	aws cloudformation validate-template --template-body file://cloudformation/configuration.yml
 	aws cloudformation validate-template --template-body file://cloudformation/application.yml
+	aws cloudformation validate-template --template-body file://cloudformation/persistence.yml
 	aws cloudformation list-exports
 
 init: validate init-create init-push
@@ -59,3 +62,6 @@ init-up:
 		--template-body file://cloudformation/configuration.yml \
 		--parameters ParameterKey=AppName,ParameterValue=$(APPNAME)
 	time aws cloudformation wait stack-update-complete --stack-name $(CONFSTACK)
+
+release:
+	git push aws HEAD:master
