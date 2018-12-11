@@ -10,13 +10,12 @@ phases:
   build:
     commands:
       - echo $S3_BUCKET
-      - echo Nothing to do in the build phase...
-      # - aws cloudformation package --template cloudformation/application.yml --s3-bucket $S3_BUCKET --output-template stack.yml
+      - aws cloudformation package --template cloudformation/application.yml --s3-bucket $S3_BUCKET --output-template application-out.yml
   post_build:
     commands:
       - echo Build completed on `date`
 
-# artifacts:
-#   type: zip
-#   files:
-#     - stack.yml
+artifacts:
+  type: zip
+  files:
+    - application-out.yml

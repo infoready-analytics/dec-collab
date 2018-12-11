@@ -51,24 +51,28 @@ sudo apt install jq
 brew install jq
 ```
 
-To use your project specific profile you need to add the following to the
+# Running Make commands
+The Make command requires that your project specific credentials (AWS_PROFILE) is 
+set for your session, and requires an APP_PREFIX to be supplied to make commands.
+
+To use your project specific credentials you need to add the following to the
 environment in each shell session you will be calling the aws cli from
 (including from make).
 ```aidl
 export AWS_PROFILE=da-dec-collab
 ```
-# Running Make commands
-To ensure you have a distinct version of your stack, it is needed for you to supply a distinct application prefix.
-You can choose to do this two ways, either export an environment variable with that prefix or specify it in your make commands.  
+
+The APP_PREFIX is used to provide a distinct version of your stack.
+As this stack uses a Global resource (i.e. S3),  collisions can occur with other developer's
+stacks.
+You can choose to do this two ways, either export an environment variable with that prefix or specify it in each of your make commands.  
 Both approaches shown below:
 ```
 export APP_PREFIX=<your prefix>
-
-you can then run your make commands without APP_PREFIX arguments:
-
 make init
 ```
 If you choose to not specify you APP_PREFIX as an environment variable, then your make commands need to be submitted as per below:
 ```
 make init APP_PREFIX=<your prefix>
 ```
+
