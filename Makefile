@@ -20,8 +20,15 @@ APPNAME=$(DOMAIN_PREFIX)$(APP_PREFIX)app
 
 # Configuration stack (repo and build pipeline)
 CONFSTACK=$(APPNAME)-CONF
+# persistence stack name
+PERSTACK=$(APPNAME)-PER
 # Shared application environment
 DEVSTACK=$(APPNAME)-DEV
+
+CLUSTER_ID=$(APPNAME)
+DB_NAME='dbname'
+DB_USER='admin'
+DB_PASS='qaZXsw21'
 
 validate:
 	aws cloudformation validate-template --template-body file://cloudformation/configuration.yml
@@ -46,6 +53,21 @@ init-create:
 		--template-body file://cloudformation/configuration.yml \
 		--parameters ParameterKey=AppName,ParameterValue=$(APPNAME)
 	time aws cloudformation wait stack-create-complete --stack-name $(CONFSTACK)
+
+un-init-persistence:
+	aws cloudformation delete-stack --stack-name $(PERSTACK)
+	time aws cloudformation wait stack-delete-complete --stack-name $(PERSTACK)
+
+init-persistence:
+	aws cloudformation create-stack --stack-name $(PERSTACK) \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--template-body file://cloudformation/persistence.yml \
+		--parameters ParameterKey=AppName,ParameterValue=$(APPNAME) \
+		  ParameterKey=ClusterId,ParameterValue=$(CLUSTER_ID) \
+		  ParameterKey=DatabaseName,ParameterValue=$(DB_NAME) \
+		  ParameterKey=DatabaseUsername,ParameterValue=$(DB_USER) \
+		  ParameterKey=DatabasePassword,ParameterValue=$(DB_PASS)
+	time aws cloudformation wait stack-create-complete --stack-name $(PERSTACK)
 
 init-push:
 	echo `aws cloudformation list-exports | jq -r '.Exports | map(select(.Name == "$(CONFSTACK):CloneUrl")) | .[0].Value'`
